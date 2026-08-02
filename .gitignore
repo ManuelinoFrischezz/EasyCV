@@ -220,5 +220,5 @@ __marimo__/
 # Agent Specs
 specs/
 
-# Test Data
-test_data/
+# Personal Data
+data/
