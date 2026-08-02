@@ -1,0 +1,10 @@
+# Architecture Decision Records (ADRs) go here.
+# 
+# Format: NNNN-title.md (e.g., 0001-use-pymupdf-for-extraction.md)
+# 
+# Template:
+# # Title
+# ## Status
+# ## Context
+# ## Decision
+# ## Consequences

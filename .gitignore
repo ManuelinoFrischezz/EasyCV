@@ -222,3 +222,10 @@ specs/
 
 # Personal Data
 data/
+
+# Test
+test.py
+.aider/
+.aider.tags.cache.v4/
+.claude/
+spec/
