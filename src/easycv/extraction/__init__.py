@@ -1,1 +1,5 @@
 """PDF extraction utilities."""
+
+from easycv.extraction.pdf_extractor import extract_pdf
+
+__all__ = ["extract_pdf"]
