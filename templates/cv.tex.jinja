@@ -1,0 +1,136 @@
+\documentclass[11pt,a4paper]{article}
+
+% =============================================================================
+% Packages
+% =============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{parskip}
+
+% =============================================================================
+% Colors and styling
+% =============================================================================
+\definecolor{linkcolor}{RGB}{0, 102, 204}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=linkcolor,
+    urlcolor=linkcolor,
+}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.5ex plus 0.5ex minus 0.2ex}{1ex plus 0.2ex}
+
+% List formatting
+\setlist[itemize]{leftmargin=1.5em, itemsep=0.2em, parsep=0em}
+\setlist[itemize,2]{leftmargin=1em, itemsep=0.1em}
+
+% =============================================================================
+% Custom commands
+% =============================================================================
+\newcommand{\entrytitle}[1]{\textbf{#1}}
+\newcommand{\entryorg}[1]{\textit{#1}}
+\newcommand{\entrydates}[1]{\hfill #1}
+\newcommand{\entrylocation}[1]{\hfill \textit{#1}}
+\newcommand{\skilllabel}[1]{\textbf{#1:}}
+\newcommand{\taglist}[1]{\textit{Tools: #1}}
+\newcommand{\sep}{$\cdot$}
+
+% =============================================================================
+% Document
+% =============================================================================
+\begin{document}
+\pagestyle{empty}
+
+% -----------------------------------------------------------------------------
+% Header
+% -----------------------------------------------------------------------------
+\begin{center}
+    {\LARGE\bfseries << header.full_name | latex_escape >>}
+    
+    \vspace{0.3em}
+    <% set contact_parts = [] -%>
+    <% if header.email -%><% set _ = contact_parts.append(header.email | latex_escape) %><% endif -%>
+    <% if header.phone -%><% set _ = contact_parts.append(header.phone | latex_escape) %><% endif -%>
+    <% if header.location -%><% set _ = contact_parts.append(header.location | latex_escape) %><% endif -%>
+    << contact_parts | join(' \\sep{} ') >>
+    
+    <% if header.linkedin_url or header.github_url or header.portfolio_url -%>
+    \vspace{0.2em}
+    <% set links = [] -%>
+    <% if header.linkedin_url -%><% set _ = links.append('\\href{' ~ header.linkedin_url ~ '}{LinkedIn}') %><% endif -%>
+    <% if header.github_url -%><% set _ = links.append('\\href{' ~ header.github_url ~ '}{GitHub}') %><% endif -%>
+    <% if header.portfolio_url -%><% set _ = links.append('\\href{' ~ header.portfolio_url ~ '}{Portfolio}') %><% endif -%>
+    << links | join(' \\sep{} ') >>
+    <% endif -%>
+\end{center}
+
+\vspace{0.5em}
+
+% -----------------------------------------------------------------------------
+% Sections
+% -----------------------------------------------------------------------------
+<% for section in sections %>
+\section*{<< section.heading | latex_escape >>}
+
+<% if section.content.layout == 'entries' -%>
+<% for entry in section.content.entries %>
+\noindent\entrytitle{<< entry.title | latex_escape >>}%
+<% if entry.end_date is none %>
+\entrydates{<< entry.start_date | latex_escape >> -- Present}
+<% else %>
+\entrydates{<< entry.start_date | latex_escape >> -- << entry.end_date | latex_escape >>}
+<% endif %>
+
+\noindent\entryorg{<< entry.organization | latex_escape >>}%
+<% if entry.location %>
+\entrylocation{<< entry.location | latex_escape >>}
+<% endif %>
+
+<% if entry.bullets -%>
+\begin{itemize}
+<% for bullet in entry.bullets -%>
+    \item << bullet.text | latex_escape >>
+    <% if bullet.children -%>
+    \begin{itemize}
+    <% for child in bullet.children -%>
+        \item << child.text | latex_escape >>
+    <% endfor -%>
+    \end{itemize}
+    <% endif -%>
+<% endfor -%>
+\end{itemize}
+<% endif -%>
+
+<% if entry.tags -%>
+\noindent\taglist{<< entry.tags | join(', ') | latex_escape >>}
+<% endif %>
+
+<% if not loop.last %>\vspace{0.5em}<% endif %>
+<% endfor %>
+
+<% elif section.content.layout == 'labeled_list' -%>
+<% for item in section.content['items'] -%>
+\noindent\skilllabel{<< item['label'] | latex_escape >>} << item['values'] | join(', ') | latex_escape >><% if not loop.last %>\\<% endif %>
+
+<% endfor %>
+
+<% elif section.content.layout == 'flat_list' -%>
+\begin{itemize}
+<% for item in section.content['items'] -%>
+    \item << item | latex_escape >>
+<% endfor -%>
+\end{itemize}
+
+<% elif section.content.layout == 'paragraph' -%>
+<< section.content.text | latex_escape >>
+
+<% endif -%>
+<% endfor %>
+
+\end{document}

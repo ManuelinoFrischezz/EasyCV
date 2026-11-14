@@ -229,3 +229,6 @@ test.py
 .aider.tags.cache.v4/
 .claude/
 spec/
+
+# Generated output files
+output/
