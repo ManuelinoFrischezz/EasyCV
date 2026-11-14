@@ -1,0 +1,57 @@
+# Layout Registry
+#
+# Defines the available layouts for CV sections. Each layout has:
+# - description: explains when to use this layout (injected in LLM prompts)
+# - model: the Pydantic model class name for the content
+# - template: the Jinja2 template block to use for rendering
+#
+# The LLM uses these descriptions to choose the appropriate layout for each
+# section it extracts from the CV.
+
+layouts:
+  entries:
+    description: |
+      Use for timeline-based sections with dated items: work experience, 
+      education, projects, certifications with dates. Each entry has a title,
+      organization, date range, optional location, bullet points describing
+      responsibilities/achievements, and optional tags for tools/technologies.
+    model: EntriesContent
+    template: entries.tex.jinja
+
+  labeled_list:
+    description: |
+      Use for categorized lists: technical skills grouped by type (Languages,
+      Frameworks, Cloud), languages with proficiency levels, or any items
+      that naturally group under labels.
+    model: LabeledListContent
+    template: labeled_list.tex.jinja
+
+  flat_list:
+    description: |
+      Use for simple lists without categories: certifications (without dates),
+      publications, awards, or any enumeration that doesn't need grouping
+      or timeline structure.
+    model: FlatListContent
+    template: flat_list.tex.jinja
+
+  paragraph:
+    description: |
+      Use for free-form text: personal profile/summary, about me sections,
+      objective statements, or any narrative content that doesn't fit
+      a structured format.
+    model: ParagraphContent
+    template: paragraph.tex.jinja
+
+# Common section kinds and their typical layouts (for reference, not enforced):
+#
+# work_experience: entries
+# education: entries
+# projects: entries
+# certifications: entries (with dates) or flat_list (without)
+# skills: labeled_list
+# technical_skills: labeled_list
+# languages: labeled_list
+# personal_profile: paragraph
+# about_me: paragraph
+# publications: flat_list
+# awards: flat_list
