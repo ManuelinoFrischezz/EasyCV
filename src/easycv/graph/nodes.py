@@ -14,6 +14,7 @@ from easycv.extraction import extract_pdf
 from easycv.graph.state import AgentResponse, GraphState, JobAnalysis
 from easycv.llm.cv_parser import parse_cv
 from easycv.llm.factory import create_llm
+from easycv.rendering import compile_latex, render_cv
 from easycv.schemas import CVData
 from easycv.settings import Settings
 
@@ -24,7 +25,7 @@ JOB_ANALYZER_PROMPTS_PATH = CONFIGS_DIR / "prompts" / "job_analyzer.yml"
 CV_AGENT_PROMPTS_PATH = CONFIGS_DIR / "prompts" / "cv_agent.yml"
 
 
-def extract_node(state: GraphState, settings: Settings) -> dict[str, Any]:  # noqa: ARG001
+def extract_node(state: GraphState) -> dict[str, Any]:  # noqa: ARG001
     """Extract text and links from PDF.
 
     This node uses PyMuPDF to extract raw content from the PDF.
@@ -32,7 +33,6 @@ def extract_node(state: GraphState, settings: Settings) -> dict[str, Any]:  # no
 
     Args:
         state: Current graph state.
-        settings: Application settings (unused, but kept for consistent node signature).
     """
     extracted = extract_pdf(state["pdf_bytes"])
 
@@ -171,11 +171,33 @@ def should_continue(state: GraphState) -> str:
 
     Returns:
         "agent" to continue the conversation
-        "end" to finish the workflow
+        "render" to generate the final PDF
     """
     if state["stage"] == "done":
-        return "end"
+        return "render"
     return "agent"
+
+
+def render_node(state: GraphState) -> dict[str, Any]:  # noqa: ARG001
+    """Render the final CV to PDF.
+
+    This node converts the current CV to LaTeX and compiles it
+    to PDF using Tectonic.
+
+    Args:
+        state: Current graph state.
+    """
+    current_cv = state["current_cv"]
+
+    if current_cv is None:
+        raise ValueError("Cannot render: no CV data in state")
+
+    latex_source = render_cv(current_cv)
+    pdf_bytes = compile_latex(latex_source)
+
+    return {
+        "rendered_pdf": pdf_bytes,
+    }
 
 
 # =============================================================================

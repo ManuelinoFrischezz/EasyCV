@@ -107,3 +107,6 @@ class GraphState(TypedDict):
 
     # Control flow
     stage: Literal["init", "chat", "done"]
+
+    # Output
+    rendered_pdf: bytes | None

@@ -39,6 +39,7 @@ from easycv.graph.nodes import (
     analyze_job_node,
     extract_node,
     parse_node,
+    render_node,
     should_continue,
 )
 from easycv.graph.state import GraphState
@@ -68,10 +69,11 @@ def create_cv_graph(
         >>> graph = create_cv_graph(settings, checkpointer=checkpointer)
     """
     # Bind settings to node functions
-    extract = partial(extract_node, settings=settings)
+    extract = partial(extract_node)
     parse = partial(parse_node, settings=settings)
     analyze_job = partial(analyze_job_node, settings=settings)
     agent = partial(agent_node, settings=settings)
+    render = partial(render_node)
 
     # Build the graph
     workflow = StateGraph(GraphState)
@@ -81,6 +83,7 @@ def create_cv_graph(
     workflow.add_node("parse", parse)
     workflow.add_node("analyze_job", analyze_job)
     workflow.add_node("agent", agent)
+    workflow.add_node("render", render)
 
     # Define edges
     workflow.set_entry_point("extract")
@@ -88,15 +91,18 @@ def create_cv_graph(
     workflow.add_edge("parse", "analyze_job")
     workflow.add_edge("analyze_job", "agent")
 
-    # Conditional edge: continue conversation or end
+    # Conditional edge: continue conversation or render final PDF
     workflow.add_conditional_edges(
         "agent",
         should_continue,
         {
             "agent": "agent",  # Loop back for more conversation
-            "end": END,
+            "render": "render",  # Generate final PDF
         },
     )
+
+    # Render is the final node
+    workflow.add_edge("render", END)
 
     # Compile with checkpointer
     if checkpointer is None:
@@ -130,4 +136,5 @@ def create_initial_state(pdf_bytes: bytes, job_description: str) -> GraphState:
         job_analysis=None,
         messages=[],
         stage="init",
+        rendered_pdf=None,
     )
