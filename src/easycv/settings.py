@@ -42,9 +42,9 @@ class LLMSettings(BaseSettings):
         extra="ignore",
     )
 
-    provider: Literal["openai", "anthropic", "openrouter"] = Field(
+    provider: Literal["openai", "anthropic", "openrouter", "ollama"] = Field(
         default="openrouter",
-        description="LLM provider: openai, anthropic, or openrouter",
+        description="LLM provider: openai, anthropic, openrouter, or ollama",
     )
     model: str = Field(
         default="anthropic/claude-sonnet-4-20250514",
@@ -60,6 +60,26 @@ class LLMSettings(BaseSettings):
         default=4096,
         gt=0,
         description="Maximum tokens in response",
+    )
+
+
+class OllamaSettings(BaseSettings):
+    """Settings for Ollama local LLM server.
+
+    Attributes:
+        base_url: URL where Ollama server is running.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="EASYCV_OLLAMA_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    base_url: str = Field(
+        default="http://localhost:11434",
+        description="Ollama server URL",
     )
 
 
@@ -101,6 +121,7 @@ class Settings(BaseSettings):
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     api_keys: APIKeySettings = Field(default_factory=APIKeySettings)
+    ollama: OllamaSettings = Field(default_factory=OllamaSettings)
 
 
 @lru_cache

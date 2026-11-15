@@ -17,10 +17,11 @@ a different base_url.
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from easycv.settings import APIKeySettings, LLMSettings, Settings
+from easycv.settings import APIKeySettings, LLMSettings, OllamaSettings, Settings
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
@@ -58,6 +59,8 @@ def create_llm(settings: Settings) -> BaseChatModel:
             return _create_anthropic(llm_settings, api_keys)
         case "openrouter":
             return _create_openrouter(llm_settings, api_keys)
+        case "ollama":
+            return _create_ollama(llm_settings, settings.ollama)
         case _:
             raise LLMConfigurationError(f"Unknown provider: {llm_settings.provider}")
 
@@ -117,4 +120,21 @@ def _create_openrouter(
         max_completion_tokens=llm_settings.max_tokens,
         api_key=api_keys.openrouter_api_key,
         base_url=OPENROUTER_BASE_URL,
+    )
+
+
+def _create_ollama(
+    llm_settings: LLMSettings,
+    ollama_settings: OllamaSettings,
+) -> ChatOllama:
+    """Create an Ollama chat model for local inference.
+
+    Ollama runs locally and doesn't require an API key.
+    Make sure the Ollama server is running before using this provider.
+    """
+    return ChatOllama(
+        model=llm_settings.model,
+        temperature=llm_settings.temperature,
+        num_predict=llm_settings.max_tokens,
+        base_url=ollama_settings.base_url,
     )
