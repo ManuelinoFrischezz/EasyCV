@@ -4,11 +4,12 @@ This module defines the state that flows through the LangGraph graph,
 including all intermediate data and conversation history.
 """
 
+import json
 from typing import Annotated, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import TypedDict
 
 from easycv.schemas import CVData, ExtractedDocument
@@ -76,6 +77,20 @@ class AgentResponse(BaseModel):
         default=None,
         description="Modified CV, or None if no changes were made",
     )
+
+    @field_validator("updated_cv", mode="before")
+    @classmethod
+    def parse_cv_from_string(cls, v: CVData | str | None) -> CVData | None:
+        """Parse CVData from JSON string if the LLM returns it serialized."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                return CVData.model_validate_json(v)
+            except Exception:
+                # Try parsing as dict first
+                return CVData.model_validate(json.loads(v))
+        return v
 
 
 class GraphState(TypedDict):

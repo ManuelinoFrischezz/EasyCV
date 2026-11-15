@@ -91,12 +91,9 @@ def _create_anthropic(
         )
 
     return ChatAnthropic(
-        model_name=llm_settings.model,
-        temperature=llm_settings.temperature,
-        max_tokens_to_sample=llm_settings.max_tokens,
+        model=llm_settings.model,  # type: ignore[call-arg]
+        max_tokens=llm_settings.max_tokens,
         api_key=SecretStr(api_keys.anthropic_api_key.get_secret_value()),
-        timeout=60.0,
-        stop=None,
     )
 
 

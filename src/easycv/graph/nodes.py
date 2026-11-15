@@ -25,7 +25,7 @@ JOB_ANALYZER_PROMPTS_PATH = CONFIGS_DIR / "prompts" / "job_analyzer.yml"
 CV_AGENT_PROMPTS_PATH = CONFIGS_DIR / "prompts" / "cv_agent.yml"
 
 
-def extract_node(state: GraphState) -> dict[str, Any]:  # noqa: ARG001
+def extract_node(state: GraphState) -> dict[str, Any]:
     """Extract text and links from PDF.
 
     This node uses PyMuPDF to extract raw content from the PDF.
@@ -117,15 +117,18 @@ def agent_node(state: GraphState, settings: Settings) -> dict[str, Any]:
     if original_cv is None or current_cv is None or job_analysis is None:
         raise ValueError("Cannot run agent: missing CV or job analysis in state")
 
-    # Get the last user message
-    last_message = messages[-1]
-    if not isinstance(last_message, HumanMessage):
-        raise ValueError("Expected last message to be from user")
-
-    user_message = last_message.content
+    # Check if there's a user message to process
+    # After analyze_job, we only have an AI message - use default request
+    if not messages or not isinstance(messages[-1], HumanMessage):
+        user_message = (
+            "Based on my resume and the job description, update my resume to "
+            "highlight and showcase the skills I have that are required in the job description."
+        )
+    else:
+        user_message = str(messages[-1].content)
 
     # Check for exit commands
-    if _is_exit_command(str(user_message)):
+    if _is_exit_command(user_message):
         return {
             "stage": "done",
             "messages": [AIMessage(content="Your CV is ready! Good luck with your application.")],
@@ -178,7 +181,7 @@ def should_continue(state: GraphState) -> str:
     return "agent"
 
 
-def render_node(state: GraphState) -> dict[str, Any]:  # noqa: ARG001
+def render_node(state: GraphState) -> dict[str, Any]:
     """Render the final CV to PDF.
 
     This node converts the current CV to LaTeX and compiles it
