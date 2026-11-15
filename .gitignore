@@ -232,3 +232,6 @@ spec/
 
 # Generated output files
 output/
+
+# Notes
+TODO.txt

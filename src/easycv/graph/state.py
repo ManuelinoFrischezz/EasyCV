@@ -4,12 +4,11 @@ This module defines the state that flows through the LangGraph graph,
 including all intermediate data and conversation history.
 """
 
-import json
 from typing import Annotated, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from easycv.schemas import CVData, ExtractedDocument
@@ -59,38 +58,179 @@ class JobAnalysis(BaseModel):
     )
 
 
+# =============================================================================
+# CV Operations - extensible system for CV modifications
+# =============================================================================
+
+
+class UpdateHeaderOp(BaseModel):
+    """Update a field in the CV header.
+
+    Example: Change location from "Milan" to "Remote"
+    """
+
+    op: Literal["update_header"] = "update_header"
+    field: Literal["full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url", "location"]
+    value: str | None = Field(description="New value for the field, or None to remove it")
+
+
+class UpdateBulletOp(BaseModel):
+    """Update a bullet point in an entry.
+
+    Example: Reword a bullet to emphasize Python skills
+    """
+
+    op: Literal["update_bullet"] = "update_bullet"
+    section_index: int = Field(description="Index of the section (0-based)")
+    entry_index: int = Field(description="Index of the entry within the section (0-based)")
+    bullet_index: int = Field(description="Index of the bullet within the entry (0-based)")
+    new_text: str = Field(description="New text for the bullet")
+
+
+class AddBulletOp(BaseModel):
+    """Add a new bullet point to an entry.
+
+    Example: Add a bullet about AI experience
+    """
+
+    op: Literal["add_bullet"] = "add_bullet"
+    section_index: int = Field(description="Index of the section (0-based)")
+    entry_index: int = Field(description="Index of the entry within the section (0-based)")
+    text: str = Field(description="Text for the new bullet")
+    position: int | None = Field(default=None, description="Position to insert at, or None to append")
+
+
+class RemoveBulletOp(BaseModel):
+    """Remove a bullet point from an entry.
+
+    Example: Remove an irrelevant bullet
+    """
+
+    op: Literal["remove_bullet"] = "remove_bullet"
+    section_index: int = Field(description="Index of the section (0-based)")
+    entry_index: int = Field(description="Index of the entry within the section (0-based)")
+    bullet_index: int = Field(description="Index of the bullet to remove (0-based)")
+
+
+class UpdateEntryOp(BaseModel):
+    """Update metadata of an entry (title, organization, dates, location).
+
+    Example: Update job title to match job posting terminology
+    """
+
+    op: Literal["update_entry"] = "update_entry"
+    section_index: int = Field(description="Index of the section (0-based)")
+    entry_index: int = Field(description="Index of the entry within the section (0-based)")
+    field: Literal["title", "organization", "start_date", "end_date", "location"]
+    value: str | None = Field(description="New value for the field")
+
+
+class UpdateTagsOp(BaseModel):
+    """Update tags/technologies for an entry.
+
+    Example: Add "LangChain" to the tags
+    """
+
+    op: Literal["update_tags"] = "update_tags"
+    section_index: int = Field(description="Index of the section (0-based)")
+    entry_index: int = Field(description="Index of the entry within the section (0-based)")
+    tags: list[str] = Field(description="New list of tags")
+
+
+class UpdateLabeledItemOp(BaseModel):
+    """Update a labeled item in a labeled_list section (e.g., skills).
+
+    Example: Add "Kubernetes" to the "Cloud" skills
+    """
+
+    op: Literal["update_labeled_item"] = "update_labeled_item"
+    section_index: int = Field(description="Index of the section (0-based)")
+    item_index: int = Field(description="Index of the labeled item (0-based)")
+    label: str | None = Field(default=None, description="New label, or None to keep current")
+    values: list[str] | None = Field(default=None, description="New values, or None to keep current")
+
+
+class UpdateParagraphOp(BaseModel):
+    """Update the text of a paragraph section.
+
+    Example: Rewrite the professional summary
+    """
+
+    op: Literal["update_paragraph"] = "update_paragraph"
+    section_index: int = Field(description="Index of the section (0-based)")
+    text: str = Field(description="New paragraph text")
+
+
+class UpdateSectionHeadingOp(BaseModel):
+    """Update the heading of a section.
+
+    Example: Rename "Work Experience" to "Professional Experience"
+    """
+
+    op: Literal["update_section_heading"] = "update_section_heading"
+    section_index: int = Field(description="Index of the section (0-based)")
+    heading: str = Field(description="New heading text")
+
+
+class ReorderSectionsOp(BaseModel):
+    """Reorder sections in the CV.
+
+    Example: Move Skills section before Work Experience
+    """
+
+    op: Literal["reorder_sections"] = "reorder_sections"
+    new_order: list[int] = Field(description="New order of section indices")
+
+
+# Future: Layout/styling operations can be added here
+# class UpdateSectionStyleOp(BaseModel):
+#     """Update visual style of a section (future feature)."""
+#     op: Literal["update_section_style"] = "update_section_style"
+#     section_index: int
+#     style: dict  # e.g., {"columns": 2, "bullet_style": "dash"}
+
+
+# Union of all operations
+CVOperation = (
+    UpdateHeaderOp
+    | UpdateBulletOp
+    | AddBulletOp
+    | RemoveBulletOp
+    | UpdateEntryOp
+    | UpdateTagsOp
+    | UpdateLabeledItemOp
+    | UpdateParagraphOp
+    | UpdateSectionHeadingOp
+    | ReorderSectionsOp
+)
+
+
 class AgentResponse(BaseModel):
     """Structured response from the CV tailoring agent.
 
-    The agent returns both a message to the user and optionally
-    an updated CV. If updated_cv is None, the CV wasn't modified.
+    The agent returns a message to the user and a list of operations
+    to apply to the CV. Operations are atomic changes that get applied
+    in sequence.
 
     Example:
         >>> response = AgentResponse(
-        ...     message="I've emphasized your Python experience in the skills section.",
-        ...     updated_cv=modified_cv_data,
+        ...     message="I've emphasized your Python experience.",
+        ...     operations=[
+        ...         UpdateBulletOp(
+        ...             section_index=0,
+        ...             entry_index=0,
+        ...             bullet_index=0,
+        ...             new_text="Led Python development for ML pipelines",
+        ...         ),
+        ...     ],
         ... )
     """
 
     message: str = Field(description="Response message to the user")
-    updated_cv: CVData | None = Field(
-        default=None,
-        description="Modified CV, or None if no changes were made",
+    operations: list[CVOperation] = Field(
+        default_factory=list,
+        description="List of operations to apply to the CV. Empty if no changes needed.",
     )
-
-    @field_validator("updated_cv", mode="before")
-    @classmethod
-    def parse_cv_from_string(cls, v: CVData | str | None) -> CVData | None:
-        """Parse CVData from JSON string if the LLM returns it serialized."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                return CVData.model_validate_json(v)
-            except Exception:
-                # Try parsing as dict first
-                return CVData.model_validate(json.loads(v))
-        return v
 
 
 class GraphState(TypedDict):
@@ -105,6 +245,7 @@ class GraphState(TypedDict):
         job_analysis: Analysis of the job description.
         messages: Conversation history with the user.
         stage: Current stage of the workflow.
+        rendered_pdf: Final PDF output.
     """
 
     # Input

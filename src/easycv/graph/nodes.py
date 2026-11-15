@@ -11,6 +11,7 @@ import yaml
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from easycv.extraction import extract_pdf
+from easycv.graph.operations import OperationError, apply_operations
 from easycv.graph.state import AgentResponse, GraphState, JobAnalysis
 from easycv.llm.cv_parser import parse_cv
 from easycv.llm.factory import create_llm
@@ -163,8 +164,16 @@ def agent_node(state: GraphState, settings: Settings) -> dict[str, Any]:
         "messages": [AIMessage(content=response.message)],
     }
 
-    if response.updated_cv is not None:
-        result["current_cv"] = response.updated_cv
+    # Apply operations to update the CV
+    if response.operations:
+        try:
+            updated_cv = apply_operations(current_cv, response.operations)
+            result["current_cv"] = updated_cv
+        except OperationError as e:
+            # If operations fail, report the error but don't crash
+            result["messages"] = [
+                AIMessage(content=f"{response.message}\n\n(Note: Some changes couldn't be applied: {e})")
+            ]
 
     return result
 
