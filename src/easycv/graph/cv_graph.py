@@ -91,12 +91,12 @@ def create_cv_graph(
     workflow.add_edge("parse", "analyze_job")
     workflow.add_edge("analyze_job", "agent")
 
-    # Conditional edge: continue conversation or render final PDF
+    # Conditional edge: after agent, either render (if done) or end (wait for user)
     workflow.add_conditional_edges(
         "agent",
         should_continue,
         {
-            "agent": "agent",  # Loop back for more conversation
+            "end": END,  # Pause and wait for user input
             "render": "render",  # Generate final PDF
         },
     )

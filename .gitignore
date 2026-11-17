@@ -235,3 +235,6 @@ output/
 
 # Notes
 TODO.txt
+
+# Agent debug logs
+logs/

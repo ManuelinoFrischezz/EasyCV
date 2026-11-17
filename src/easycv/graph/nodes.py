@@ -11,6 +11,7 @@ import yaml
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from easycv.extraction import extract_pdf
+from easycv.graph.logging import log_agent_call
 from easycv.graph.operations import OperationError, apply_operations
 from easycv.graph.state import AgentResponse, GraphState, JobAnalysis
 from easycv.llm.cv_parser import parse_cv
@@ -158,7 +159,39 @@ def agent_node(state: GraphState, settings: Settings) -> dict[str, Any]:
 
     llm_messages.append(HumanMessage(content=user_prompt))
 
-    response: AgentResponse = structured_llm.invoke(llm_messages)  # type: ignore[assignment]
+    # Prepare CV summary for logging
+    cv_summary = _create_cv_summary(current_cv)
+
+    # Call LLM and log the interaction
+    raw_response = None
+    parsed_response = None
+    error_msg = None
+
+    try:
+        raw_response = structured_llm.invoke(llm_messages)
+        response: AgentResponse = raw_response  # type: ignore[assignment]
+        parsed_response = response.model_dump()
+    except Exception as e:
+        error_msg = str(e)
+        log_agent_call(
+            user_message=user_message,
+            system_prompt=system_prompt,
+            cv_summary=cv_summary,
+            raw_response=raw_response,
+            parsed_response=None,
+            error=error_msg,
+        )
+        raise
+
+    # Log successful call
+    log_agent_call(
+        user_message=user_message,
+        system_prompt=system_prompt,
+        cv_summary=cv_summary,
+        raw_response=raw_response,
+        parsed_response=parsed_response,
+        error=None,
+    )
 
     result: dict[str, Any] = {
         "messages": [AIMessage(content=response.message)],
@@ -182,12 +215,14 @@ def should_continue(state: GraphState) -> str:
     """Determine the next step based on current state.
 
     Returns:
-        "agent" to continue the conversation
-        "render" to generate the final PDF
+        "render" to generate the final PDF (when user says done)
+        "end" to pause and wait for user input
     """
+    # Check if user said "done" - stage will be "done"
     if state["stage"] == "done":
         return "render"
-    return "agent"
+    # Otherwise pause and wait for next user input
+    return "end"
 
 
 def render_node(state: GraphState) -> dict[str, Any]:
